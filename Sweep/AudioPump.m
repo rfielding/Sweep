@@ -40,6 +40,8 @@ static void audioSessionInterruptionCallback(void *inUserData, UInt32 interrupti
 
 static OSStatus fixGDLatency()
 {
+    //Prefer 256 samples @ 44.1khz.  Anything larger is difficult to play in the 
+    //final instrument.
     float latency = 0.005;
     
     OSStatus

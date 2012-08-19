@@ -12,6 +12,9 @@
 #include "WaveEngine.h"
 #include <math.h>
 
+//We want 256, but we expect buffer size to jump around.
+//Specifically, it will jump to 1024 at times, and when sleeping
+//it can go as high as 4096 as far as I have seen.
 #define MAX_AUDIOBUFFER 4096
 
 #define WE_TABLEBITS 8
@@ -25,6 +28,9 @@
 #define WE_CYCLEBITS 8
 #define WE_CYCLES (1<<WE_CYCLEBITS)
 #define WE_CYCLEMASK (WE_CYCLES-1)
+
+//Over-exercise the engine with one too many choruses so
+//that performance doesn't get out of hand when we go back down to what we want.
 #define WE_CHORUS 4
 
 #define N WE_TABLESIZE
@@ -35,18 +41,20 @@
 ////BEGIN WE_audioMipMap
 //
 /*
-   w[N*2] packing:
+   The whole point of this little project is experimenting with a Mipmap style
+   audio sample.  Since you can never truly filter out digital aliasing once it 
+   is introduced, this lets you put in samples per octave (or simply have one 
+   sample be filtered of aliasing frequencies).  If you build samples as a sum
+   of sine waves, without exceeding the nyquist limit, then aliasing cannot happen.
  
-   The same audio buffer recreated at half size, appended:
+   The other thing is that it supports having a sequence of cycles (ie: not single
+   cycle wave).  This can merely be a set that we can wander through, or it can 
+   be a full arbitrary cycle that has been cut up into pieces.
  
-   [N samples][N/2 samples][N/4 samples][...][1 sample]
- 
-   So there are sets of these packed adjacently, so that harmonic content can move
-   as we go from cycle to cycle.  We can move through the cycles at whatever speed
-   we want (not necessarily original real-time), or move backwards through them.
-   This essentially separates pitch from sample speed.
- 
-   w0[N*2]w1[N*2]w2[N*3]...wC[N*2]
+   Then finally, there is a set of these sample buffers that we can fade between.
+   This should let us completely separate playback speed from frequency, at the cost
+   of possibly adding a sort of ring modulation effect to the original sample if 
+   it doesn't really have a clear fundamental frequency of its own.
  */
 //
 
