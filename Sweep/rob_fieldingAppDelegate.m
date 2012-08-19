@@ -7,6 +7,7 @@
 //
 
 #import "rob_fieldingAppDelegate.h"
+#include "AudioPump.h"
 
 @implementation rob_fieldingAppDelegate
 
@@ -15,6 +16,7 @@
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
     // Override point for customization after application launch.
+    AP_start();
     return YES;
 }
 							
