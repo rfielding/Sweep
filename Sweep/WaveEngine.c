@@ -17,7 +17,7 @@
 //it can go as high as 4096 as far as I have seen.
 #define MAX_AUDIOBUFFER 4096
 
-#define WE_TABLEBITS 8
+#define WE_TABLEBITS 11
 #define WE_TABLESIZE (1<<WE_TABLEBITS)
 #define WE_TABLEMASK (WE_TABLESIZE-1)
 #define WE_VOICES 16
@@ -25,7 +25,7 @@
 #define WE_FBITS 2
 #define WE_F (1<<WE_FBITS)
 #define WE_FMASK (WE_F-1)
-#define WE_CYCLEBITS 8
+#define WE_CYCLEBITS 11
 #define WE_CYCLES (1<<WE_CYCLEBITS)
 #define WE_CYCLEMASK (WE_CYCLES-1)
 
@@ -82,7 +82,7 @@ struct WE_voices {
 struct WE_engine {
     struct WE_voices voice[V];
     //Two mipmaps to fade between, possibly not packed together
-    float table[C][2][N*2]; 
+    float table[C][WE_F][N*2]; 
     long  sample;
     float tableStart[WE_TABLEBITS];
 } WE_state;
@@ -124,7 +124,7 @@ static inline float folisample(float f,const float w0[N*2],const float w1[N*2],f
 }
                 
 //Interpolate across an array of cross-faded samples
-static inline float pfolisample(float f0,float f1,float wt[C][2][N*2], float s,float oct)
+static inline float pfolisample(float f0,float f1,float wt[C][WE_F][N*2], float s,float oct)
 {
     int wt1  = ((int)f1)&WE_CYCLEMASK;
     int wt1h = (1+(int)f1)&WE_CYCLEMASK;
@@ -158,9 +158,9 @@ void WE_init()
                 ////TODO: write wave tables
                 double phase = (i * 2.0 * M_PI) / (1.0 * N);
                 WE_state.table[c][0][start+i] = (1.0*rand())/RAND_MAX; 
-                WE_state.table[c][1][start+i] = sinf(phase);                    
-                WE_state.table[c][2][start+i] = sinf(2*phase);                    
-                WE_state.table[c][3][start+i] = sinf(4*phase);                    
+                WE_state.table[c][1][start+i] = sinf(4*phase) + sinf(3*phase)/3;                    
+                WE_state.table[c][2][start+i] = sinf(1*phase) + sinf(2*phase)/2;                    
+                WE_state.table[c][3][start+i] = sinf(1*phase);                    
             }                    
             start += sz;
             sz = sz>>1;
@@ -243,18 +243,23 @@ void WE_render(long left[], long right[], long samples)
             float t0I        = WE_state.voice[v].parm[P_T0].interp;
             float t1I        = WE_state.voice[v].parm[P_T1].interp;
             float o      = nI/12;
+            float* L = leftf;
+            float* R = rightf;
+            float* T;
             for(int c=0;c<WE_CHORUS;c++)
             {
+                //Swap L and R - causes chorus voices to move around
+                T=L; L=R; R=T;
                 //Not sure if double precision helps here.  I am assuming
                 float p     = WE_state.voice[v].phase[c];
                 float cyclesPerSample = powf(2,(nI+c*0.1-33)/12) * (440/(44100.0*32));
                 for(int i=0;i<samples;i++)
                 {
-                    float phase = p + (cyclesPerSample*i);
-                    float s = pfolisample(t1I,phase*0.01,WE_state.table, phase * N,o);
+                    float t = cyclesPerSample*i;
+                    float phase = p + t;
+                    float s = pfolisample(t1I*3,phase*0.01,WE_state.table, phase * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
-                    leftf[i]  += (s * aInterp * t0I)*0.6;
-                    rightf[i] = leftf[i];
+                    L[i]  += (s * aInterp * t0I)*0.6;
                 }                        
                 WE_state.voice[v].phase[c] = p + (cyclesPerSample*(samples));            
             }
