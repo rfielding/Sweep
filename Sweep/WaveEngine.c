@@ -165,8 +165,7 @@ void WE_init()
             {
                 ////TODO: write wave tables
                 double phase = ((i * 2.0 * M_PI) / (1.0 * (WE_TABLESIZE>>n)) + M_PI/4);
-                WE_state.table[c][0][start+i] = 
-                    (1.0*rand())/RAND_MAX; 
+                WE_state.table[c][0][start+i] = (1.0*rand())/RAND_MAX;                     
                 WE_state.table[c][1][start+i] = sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5+sinf(6*phase)/6+sinf(7*phase)/7;                    
                 WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3+sinf(5*phase)/5+sinf(7*phase)/7;                    
                 WE_state.table[c][3][start+i] = sinf(1*phase);                    
@@ -261,7 +260,7 @@ void WE_render(long left[], long right[], long samples)
             float nI         = WE_state.voice[v].parm[P_NOTE].interp;
             float t0I        = WE_state.voice[v].parm[P_T0].interp;
             float t1I        = WE_state.voice[v].parm[P_T1].interp;
-            float o      = nI/12 - 1;
+            float o      = nI/12 - 3;
             o = o < 0 ? 0 : o;
             float* L = leftf;
             float* R = rightf;
@@ -274,7 +273,7 @@ void WE_render(long left[], long right[], long samples)
                 float p     = WE_state.voice[v].phase[c];
                 float jitter =  WE_state.voice[v].drift[c];
                 float chorus = (c-C/2.0)*0.025;
-                float thisFreq = powf(2,(nI+jitter+chorus-33)/12) * (440/(44100.0*64));
+                float thisFreq = powf(2,(nI+jitter+chorus-33)/12) * (440/(44100.0*32));
                 float lastFreq = WE_state.voice[v].lastFreq[c];
                 float freqDiff = thisFreq-lastFreq;
                 int i;
