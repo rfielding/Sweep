@@ -25,7 +25,7 @@
 #define WE_FBITS 2
 #define WE_F (1<<WE_FBITS)
 #define WE_FMASK (WE_F-1)
-#define WE_CYCLEBITS 8
+#define WE_CYCLEBITS 4
 #define WE_CYCLES (1<<WE_CYCLEBITS)
 #define WE_CYCLEMASK (WE_CYCLES-1)
 
@@ -73,8 +73,8 @@ struct WE_parm {
 
 struct WE_voices {
     //State of the voice, in radians
-    double phase[WE_CHORUS];
-    
+    float phase[WE_CHORUS];
+    float lastFreq[WE_CHORUS];
     //These are used to handle parameter changes
     struct WE_parm parm[P];
 };
@@ -176,7 +176,8 @@ void WE_init()
     {
         for(int c=0; c<WE_CHORUS; c++)
         {
-            WE_state.voice[v].phase[c]   = 0;            
+            WE_state.voice[v].phase[c]   = 0;    
+            WE_state.voice[v].lastFreq[c] = 0;
         }
         for(WE_parm p=0; p<P; p++)
         {
@@ -223,6 +224,7 @@ static inline void commit_voice(int v)
     }    
 }
 
+
 void WE_render(long left[], long right[], long samples) 
 {
     static float leftf[MAX_AUDIOBUFFER];
@@ -258,17 +260,20 @@ void WE_render(long left[], long right[], long samples)
                 //Swap L and R - causes chorus voices to move around
                 T=L; L=R; R=T;
                 //Not sure if double precision helps here.  I am assuming
-                double p     = WE_state.voice[v].phase[c];
-                double cyclesPerSample = powf(2,(nI+c*0.05-33)/12) * (440/(44100.0*32));
-                for(int i=0;i<samples;i++)
+                float p     = WE_state.voice[v].phase[c];
+                float thisFreq = powf(2,(nI+c*0.05-33)/12) * (440/(44100.0*64));
+                float lastFreq = WE_state.voice[v].lastFreq[c];
+                float freqDiff = thisFreq-lastFreq;
+                int i;
+                for(i=0;i<samples;i++)
                 {
-                    double t = cyclesPerSample*i;
-                    double phase = p + t;
-                    float s = pfolisample((t1I*WE_FMASK),t0I*4,WE_state.table, phase * N,o);
+                    float phaseDiff = lastFreq*i + freqDiff*i*i*invSamples;
+                    float s = pfolisample((t1I*WE_FMASK),t0I*4,WE_state.table, (p+phaseDiff) * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
                     L[i]  += (s * aInterp * t0I)*0.6;
                 }                        
-                WE_state.voice[v].phase[c] = p + (cyclesPerSample*(samples));            
+                WE_state.voice[v].phase[c] += lastFreq*i + freqDiff*i*i*invSamples;            
+                WE_state.voice[v].lastFreq[c] = thisFreq;
             }
         }
         else 
