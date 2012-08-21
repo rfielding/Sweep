@@ -31,7 +31,7 @@
 
 //Over-exercise the engine with one too many choruses so
 //that performance doesn't get out of hand when we go back down to what we want.
-#define WE_CHORUS 4
+#define WE_CHORUS 6
 
 #define N WE_TABLESIZE
 #define C WE_CYCLES
@@ -273,19 +273,20 @@ void WE_render(long left[], long right[], long samples)
                 //Not sure if double precision helps here.  I am assuming
                 float p     = WE_state.voice[v].phase[c];
                 float jitter =  WE_state.voice[v].drift[c];
-                float chorus = c*0.05;
+                float chorus = (c-C/2.0)*0.025;
                 float thisFreq = powf(2,(nI+jitter+chorus-33)/12) * (440/(44100.0*64));
                 float lastFreq = WE_state.voice[v].lastFreq[c];
                 float freqDiff = thisFreq-lastFreq;
                 int i;
                 for(i=0;i<samples;i++)
                 {
+                    //This is the integral of phase from start to finish
                     float phaseDiff = lastFreq*i + freqDiff*i*i*invSamples;
-                    float s = pfolisample((t1I*WE_FMASK),0,WE_state.table, (p+phaseDiff) * N,o);
+                    float s = pfolisample((t1I*WE_FMASK),(p+phaseDiff)*0.01,WE_state.table, (p+phaseDiff) * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
                     L[i]  += (s * aInterp * t0I)*0.5;
                 }        
-                //Jitter the phase a little to trade a little noise for no alias
+                //Final point set
                 WE_state.voice[v].phase[c] += lastFreq*i + freqDiff*i*i*invSamples;            
                 WE_state.voice[v].lastFreq[c] = thisFreq;
             }
