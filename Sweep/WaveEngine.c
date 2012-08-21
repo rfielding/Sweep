@@ -17,7 +17,7 @@
 //it can go as high as 4096 as far as I have seen.
 #define MAX_AUDIOBUFFER 4096
 
-#define WE_TABLEBITS 8
+#define WE_TABLEBITS 12
 #define WE_TABLESIZE (1<<WE_TABLEBITS)
 #define WE_TABLEMASK (WE_TABLESIZE-1)
 #define WE_VOICES 16
@@ -90,7 +90,7 @@ struct WE_engine {
 //with half-size octave higher rendering appended to each buffer.
 static inline float sample(const float w[N*2],int s, int oct)
 {
-    return w[((s&(N-1))>>oct) + 2*N - ((2*N)>>oct)]; //w[is + id];
+    return w[((s&(N-1))>>oct) + 2*N - ((2*N)>>oct) ]; //w[is + id];
 }
 
 //Linear interpolate the sample value w[s] with the next value up
@@ -251,8 +251,8 @@ void WE_render(long left[], long right[], long samples)
             float nI         = WE_state.voice[v].parm[P_NOTE].interp;
             float t0I        = WE_state.voice[v].parm[P_T0].interp;
             float t1I        = WE_state.voice[v].parm[P_T1].interp;
-            float o      = nI/12 - 2;
-            o = o < 0 ? 0 : o;
+            float o      = nI/12;// - 2;
+            //o = o < 0 ? 0 : o;
             float* L = leftf;
             float* R = rightf;
             float* T;
@@ -262,7 +262,9 @@ void WE_render(long left[], long right[], long samples)
                 T=L; L=R; R=T;
                 //Not sure if double precision helps here.  I am assuming
                 float p     = WE_state.voice[v].phase[c];
-                float thisFreq = powf(2,(nI+c*0.1-33)/12) * (440/(44100.0*16));
+                float jitter =  random()*0.02/RAND_MAX;
+                float chorus = c*0.1;
+                float thisFreq = powf(2,(nI+jitter+chorus-33)/12) * (440/(44100.0*16));
                 float lastFreq = WE_state.voice[v].lastFreq[c];
                 float freqDiff = thisFreq-lastFreq;
                 int i;
@@ -272,7 +274,8 @@ void WE_render(long left[], long right[], long samples)
                     float s = pfolisample((t1I*WE_FMASK),0,WE_state.table, (p+phaseDiff) * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
                     L[i]  += (s * aInterp * t0I)*0.5;
-                }                        
+                }        
+                //Jitter the phase a little to trade a little noise for no alias
                 WE_state.voice[v].phase[c] += lastFreq*i + freqDiff*i*i*invSamples;            
                 WE_state.voice[v].lastFreq[c] = thisFreq;
             }
