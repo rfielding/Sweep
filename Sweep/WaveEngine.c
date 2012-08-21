@@ -168,10 +168,12 @@ void WE_init()
                 double phase = ((i * 2.0 * M_PI) / (1.0 * S) + M_PI/4);
                 //if(i%2==0)
                 {
-                    float v = (1.0*rand())/RAND_MAX * 0.33;
-                    WE_state.table[c][0][start+i] += v;                      
-                    WE_state.table[c][0][(start+i+1+S)%S] += v;                      
-                    WE_state.table[c][0][(start+i-1+S)%S] += v;                      
+                    float v = (1.0*rand())/RAND_MAX;
+                    WE_state.table[c][0][start+i] += v * 0.65;                      
+                    WE_state.table[c][0][(start+i+1+S)%S] += v * 0.5;                      
+                    WE_state.table[c][0][(start+i-1+S)%S] += v * 0.5;                      
+                    WE_state.table[c][0][(start+i+2+S)%S] += v * 0.18;                      
+                    WE_state.table[c][0][(start+i-2+S)%S] += v * 0.18;                      
                 }
                 
                 WE_state.table[c][1][start+i] += sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5+sinf(6*phase)/6+sinf(7*phase)/7;                    
