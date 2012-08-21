@@ -25,7 +25,7 @@
 #define WE_FBITS 2
 #define WE_F (1<<WE_FBITS)
 #define WE_FMASK (WE_F-1)
-#define WE_CYCLEBITS 1
+#define WE_CYCLEBITS 4
 #define WE_CYCLES (1<<WE_CYCLEBITS)
 #define WE_CYCLEMASK (WE_CYCLES-1)
 
