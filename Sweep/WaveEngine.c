@@ -17,7 +17,7 @@
 //it can go as high as 4096 as far as I have seen.
 #define MAX_AUDIOBUFFER 4096
 
-#define WE_TABLEBITS 12
+#define WE_TABLEBITS 10
 #define WE_TABLESIZE (1<<WE_TABLEBITS)
 #define WE_TABLEMASK (WE_TABLESIZE-1)
 #define WE_VOICES 16
@@ -75,6 +75,7 @@ struct WE_voices {
     //State of the voice, in radians
     float phase[WE_CHORUS];
     float lastFreq[WE_CHORUS];
+    float drift[WE_CHORUS];
     //These are used to handle parameter changes
     struct WE_parm parm[P];
 };
@@ -163,11 +164,11 @@ void WE_init()
             for(int i=0; i<(WE_TABLESIZE>>n); i++)
             {
                 ////TODO: write wave tables
-                double phase = (i * 2.0 * M_PI) / (1.0 * (WE_TABLESIZE>>n)) + M_PI/4;
+                double phase = ((i * 2.0 * M_PI) / (1.0 * (WE_TABLESIZE>>n)) + M_PI/4);
                 WE_state.table[c][0][start+i] = 
                     (1.0*rand())/RAND_MAX; 
-                WE_state.table[c][1][start+i] = sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5;                    
-                WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3+sinf(5*phase)/5;                    
+                WE_state.table[c][1][start+i] = sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5+sinf(6*phase)/6+sinf(7*phase)/7;                    
+                WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3+sinf(5*phase)/5+sinf(7*phase)/7;                    
                 WE_state.table[c][3][start+i] = sinf(1*phase);                    
             }   
         }
@@ -178,15 +179,16 @@ void WE_init()
         {
             WE_state.voice[v].phase[c]   = 0;    
             WE_state.voice[v].lastFreq[c] = 0;
+            WE_state.voice[v].drift[c] = 0;
         }
         for(WE_parm p=0; p<P; p++)
         {
             WE_state.voice[v].parm[p].now = 0;
             WE_state.voice[v].parm[p].next = 0; 
             WE_state.voice[v].parm[p].interp = 0;
-            WE_state.voice[v].parm[p].rate   = 0.9;
+            WE_state.voice[v].parm[p].rate   = 0.95;
         }
-        WE_state.voice[v].parm[P_NOTE].rate   = 0.5;
+        WE_state.voice[v].parm[P_NOTE].rate   = 0.65;
     }
 }
 
@@ -218,10 +220,18 @@ static inline void interp_voice(int v)
 
 static inline void commit_voice(int v)
 {
+    //Do parm interpolation
     for(int p=0; p<P; p++)
     {
-        WE_state.voice[v].parm[p].now = WE_state.voice[v].parm[p].interp;            
+        WE_state.voice[v].parm[p].now = WE_state.voice[v].parm[p].interp;    
     }    
+    //Do oscillator drift to hide aliasing
+    for(int c=0;c<WE_CHORUS;c++)
+    {
+        float jitter =  (random()*1.0/RAND_MAX-0.5)*0.01;
+        WE_state.voice[v].drift[c] += jitter;
+        WE_state.voice[v].drift[c] *= 0.99;
+    }
 }
 
 
@@ -251,8 +261,8 @@ void WE_render(long left[], long right[], long samples)
             float nI         = WE_state.voice[v].parm[P_NOTE].interp;
             float t0I        = WE_state.voice[v].parm[P_T0].interp;
             float t1I        = WE_state.voice[v].parm[P_T1].interp;
-            float o      = nI/12;// - 2;
-            //o = o < 0 ? 0 : o;
+            float o      = nI/12 - 1;
+            o = o < 0 ? 0 : o;
             float* L = leftf;
             float* R = rightf;
             float* T;
@@ -262,9 +272,9 @@ void WE_render(long left[], long right[], long samples)
                 T=L; L=R; R=T;
                 //Not sure if double precision helps here.  I am assuming
                 float p     = WE_state.voice[v].phase[c];
-                float jitter =  random()*0.02/RAND_MAX;
-                float chorus = c*0.1;
-                float thisFreq = powf(2,(nI+jitter+chorus-33)/12) * (440/(44100.0*16));
+                float jitter =  WE_state.voice[v].drift[c];
+                float chorus = c*0.05;
+                float thisFreq = powf(2,(nI+jitter+chorus-33)/12) * (440/(44100.0*64));
                 float lastFreq = WE_state.voice[v].lastFreq[c];
                 float freqDiff = thisFreq-lastFreq;
                 int i;
