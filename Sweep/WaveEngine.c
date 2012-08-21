@@ -17,7 +17,7 @@
 //it can go as high as 4096 as far as I have seen.
 #define MAX_AUDIOBUFFER 4096
 
-#define WE_TABLEBITS 12
+#define WE_TABLEBITS 8
 #define WE_TABLESIZE (1<<WE_TABLEBITS)
 #define WE_TABLEMASK (WE_TABLESIZE-1)
 #define WE_VOICES 16
@@ -25,7 +25,7 @@
 #define WE_FBITS 2
 #define WE_F (1<<WE_FBITS)
 #define WE_FMASK (WE_F-1)
-#define WE_CYCLEBITS 4
+#define WE_CYCLEBITS 1
 #define WE_CYCLES (1<<WE_CYCLEBITS)
 #define WE_CYCLEMASK (WE_CYCLES-1)
 
@@ -167,7 +167,7 @@ void WE_init()
                 WE_state.table[c][0][start+i] = 
                     (1.0*rand())/RAND_MAX; 
                 WE_state.table[c][1][start+i] = sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5;                    
-                WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3;                    
+                WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3+sinf(5*phase)/5;                    
                 WE_state.table[c][3][start+i] = sinf(1*phase);                    
             }   
         }
@@ -251,7 +251,8 @@ void WE_render(long left[], long right[], long samples)
             float nI         = WE_state.voice[v].parm[P_NOTE].interp;
             float t0I        = WE_state.voice[v].parm[P_T0].interp;
             float t1I        = WE_state.voice[v].parm[P_T1].interp;
-            float o      = nI/12;
+            float o      = nI/12 - 2;
+            o = o < 0 ? 0 : o;
             float* L = leftf;
             float* R = rightf;
             float* T;
@@ -261,16 +262,16 @@ void WE_render(long left[], long right[], long samples)
                 T=L; L=R; R=T;
                 //Not sure if double precision helps here.  I am assuming
                 float p     = WE_state.voice[v].phase[c];
-                float thisFreq = powf(2,(nI+c*0.05-33)/12) * (440/(44100.0*64));
+                float thisFreq = powf(2,(nI+c*0.1-33)/12) * (440/(44100.0*16));
                 float lastFreq = WE_state.voice[v].lastFreq[c];
                 float freqDiff = thisFreq-lastFreq;
                 int i;
                 for(i=0;i<samples;i++)
                 {
                     float phaseDiff = lastFreq*i + freqDiff*i*i*invSamples;
-                    float s = pfolisample((t1I*WE_FMASK),t0I*4,WE_state.table, (p+phaseDiff) * N,o);
+                    float s = pfolisample((t1I*WE_FMASK),0,WE_state.table, (p+phaseDiff) * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
-                    L[i]  += (s * aInterp * t0I)*0.6;
+                    L[i]  += (s * aInterp * t0I)*0.5;
                 }                        
                 WE_state.voice[v].phase[c] += lastFreq*i + freqDiff*i*i*invSamples;            
                 WE_state.voice[v].lastFreq[c] = thisFreq;
