@@ -31,7 +31,7 @@
 
 //Over-exercise the engine with one too many choruses so
 //that performance doesn't get out of hand when we go back down to what we want.
-#define WE_CHORUS 6
+#define WE_CHORUS 4
 
 #define N WE_TABLESIZE
 #define C WE_CYCLES
@@ -161,14 +161,22 @@ void WE_init()
         {
             int start = ( 2*N - ((2*N)>>n));
             //start = 2*N - (2*N)>>n;
-            for(int i=0; i<(WE_TABLESIZE>>n); i++)
+            int S = (WE_TABLESIZE>>n);
+            for(int i=0; i<S; i++)
             {
                 ////TODO: write wave tables
-                double phase = ((i * 2.0 * M_PI) / (1.0 * (WE_TABLESIZE>>n)) + M_PI/4);
-                WE_state.table[c][0][start+i] = (1.0*rand())/RAND_MAX;                     
-                WE_state.table[c][1][start+i] = sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5+sinf(6*phase)/6+sinf(7*phase)/7;                    
-                WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3+sinf(5*phase)/5+sinf(7*phase)/7;                    
-                WE_state.table[c][3][start+i] = sinf(1*phase);                    
+                double phase = ((i * 2.0 * M_PI) / (1.0 * S) + M_PI/4);
+                //if(i%2==0)
+                {
+                    float v = (1.0*rand())/RAND_MAX * 0.33;
+                    WE_state.table[c][0][start+i] += v;                      
+                    WE_state.table[c][0][(start+i+1+S)%S] += v;                      
+                    WE_state.table[c][0][(start+i-1+S)%S] += v;                      
+                }
+                
+                WE_state.table[c][1][start+i] += sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5+sinf(6*phase)/6+sinf(7*phase)/7;                    
+                WE_state.table[c][2][start+i] += sinf(1*phase)+sinf(3*phase)/3+sinf(5*phase)/5+sinf(7*phase)/7;                    
+                WE_state.table[c][3][start+i] += sinf(1*phase);                    
             }   
         }
     }
@@ -187,7 +195,7 @@ void WE_init()
             WE_state.voice[v].parm[p].interp = 0;
             WE_state.voice[v].parm[p].rate   = 0.95;
         }
-        WE_state.voice[v].parm[P_NOTE].rate   = 0.65;
+        WE_state.voice[v].parm[P_NOTE].rate   = 0.25;
     }
 }
 
