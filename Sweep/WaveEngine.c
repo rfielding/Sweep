@@ -164,7 +164,8 @@ void WE_init()
             {
                 ////TODO: write wave tables
                 double phase = (i * 2.0 * M_PI) / (1.0 * (WE_TABLESIZE>>n)) + M_PI/4;
-                WE_state.table[c][0][start+i] = (1.0*rand())/RAND_MAX; 
+                WE_state.table[c][0][start+i] = 
+                    (1.0*rand())/RAND_MAX; 
                 WE_state.table[c][1][start+i] = sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5;                    
                 WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3;                    
                 WE_state.table[c][3][start+i] = sinf(1*phase);                    
@@ -263,7 +264,7 @@ void WE_render(long left[], long right[], long samples)
                 {
                     double t = cyclesPerSample*i;
                     double phase = p + t;
-                    float s = pfolisample((t1I*WE_FMASK),t0I*0.001,WE_state.table, phase * N,o);
+                    float s = pfolisample((t1I*WE_FMASK),t0I*4,WE_state.table, phase * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
                     L[i]  += (s * aInterp * t0I)*0.6;
                 }                        
