@@ -17,7 +17,7 @@
 //it can go as high as 4096 as far as I have seen.
 #define MAX_AUDIOBUFFER 4096
 
-#define WE_TABLEBITS 10
+#define WE_TABLEBITS 12
 #define WE_TABLESIZE (1<<WE_TABLEBITS)
 #define WE_TABLEMASK (WE_TABLESIZE-1)
 #define WE_VOICES 16
@@ -73,7 +73,7 @@ struct WE_parm {
 
 struct WE_voices {
     //State of the voice, in radians
-    float phase[WE_CHORUS];
+    double phase[WE_CHORUS];
     
     //These are used to handle parameter changes
     struct WE_parm parm[P];
@@ -145,21 +145,30 @@ void WE_init()
     //Fill tables with noise
     for(int c=0; c<C; c++)
     {
-        int sz = WE_TABLESIZE;
+        for(int n=0; n<WE_TABLEBITS; n++)
+        {
+            int start = ( 2*N - ((2*N)>>n));
+            for(int i=0; i<(WE_TABLESIZE>>n); i++)
+            {
+                WE_state.table[c][0][start+i] = 0;                 
+            }
+        }
+    }
+    for(int c=0; c<C; c++)
+    {
         for(int n=0; n<WE_TABLEBITS; n++)
         {
             int start = ( 2*N - ((2*N)>>n));
             //start = 2*N - (2*N)>>n;
-            for(int i=0; i<sz; i++)
+            for(int i=0; i<(WE_TABLESIZE>>n); i++)
             {
                 ////TODO: write wave tables
-                double phase = (i * 2.0 * M_PI) / (1.0 * sz);
+                double phase = (i * 2.0 * M_PI) / (1.0 * (WE_TABLESIZE>>n)) + M_PI/4;
                 WE_state.table[c][0][start+i] = (1.0*rand())/RAND_MAX; 
-                WE_state.table[c][1][start+i] = (phase/M_PI) - 1;                    
-                WE_state.table[c][2][start+i] = sinf(1*phase);                    
-                WE_state.table[c][3][start+i] = sinf(2*phase);                    
+                WE_state.table[c][1][start+i] = sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5;                    
+                WE_state.table[c][2][start+i] = sinf(1*phase)+sinf(3*phase)/3;                    
+                WE_state.table[c][3][start+i] = sinf(1*phase);                    
             }   
-            sz = sz>>1;
         }
     }
     for(WE_voice v=0; v<V; v++)
@@ -175,6 +184,7 @@ void WE_init()
             WE_state.voice[v].parm[p].interp = 0;
             WE_state.voice[v].parm[p].rate   = 0.9;
         }
+        WE_state.voice[v].parm[P_NOTE].rate   = 0.5;
     }
 }
 
@@ -247,12 +257,12 @@ void WE_render(long left[], long right[], long samples)
                 //Swap L and R - causes chorus voices to move around
                 T=L; L=R; R=T;
                 //Not sure if double precision helps here.  I am assuming
-                float p     = WE_state.voice[v].phase[c];
-                float cyclesPerSample = powf(2,(nI+c*0.1-33)/12) * (440/(44100.0*32));
+                double p     = WE_state.voice[v].phase[c];
+                double cyclesPerSample = powf(2,(nI+c*0.05-33)/12) * (440/(44100.0*32));
                 for(int i=0;i<samples;i++)
                 {
-                    float t = cyclesPerSample*i;
-                    float phase = p + t;
+                    double t = cyclesPerSample*i;
+                    double phase = p + t;
                     float s = pfolisample((t1I*WE_FMASK),t0I*0.001,WE_state.table, phase * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
                     L[i]  += (s * aInterp * t0I)*0.6;
