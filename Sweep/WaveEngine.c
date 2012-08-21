@@ -17,7 +17,7 @@
 //it can go as high as 4096 as far as I have seen.
 #define MAX_AUDIOBUFFER 4096
 
-#define WE_TABLEBITS 11
+#define WE_TABLEBITS 10
 #define WE_TABLESIZE (1<<WE_TABLEBITS)
 #define WE_TABLEMASK (WE_TABLESIZE-1)
 #define WE_VOICES 16
@@ -25,7 +25,7 @@
 #define WE_FBITS 2
 #define WE_F (1<<WE_FBITS)
 #define WE_FMASK (WE_F-1)
-#define WE_CYCLEBITS 11
+#define WE_CYCLEBITS 8
 #define WE_CYCLES (1<<WE_CYCLEBITS)
 #define WE_CYCLEMASK (WE_CYCLES-1)
 
@@ -84,16 +84,13 @@ struct WE_engine {
     //Two mipmaps to fade between, possibly not packed together
     float table[C][WE_F][N*2]; 
     long  sample;
-    float tableStart[WE_TABLEBITS];
 } WE_state;
 
 //Pick a sample at the correct octave, whee sample buffer is packed
 //with half-size octave higher rendering appended to each buffer.
 static inline float sample(const float w[N*2],int s, int oct)
 {
-    int is = (N - N>>oct)<<1;
-    int id = (s&WE_TABLEMASK)>>oct;
-    return w[is + id];
+    return w[((s&(N-1))>>oct) + 2*N - ((2*N)>>oct)]; //w[is + id];
 }
 
 //Linear interpolate the sample value w[s] with the next value up
@@ -149,20 +146,19 @@ void WE_init()
     for(int c=0; c<C; c++)
     {
         int sz = WE_TABLESIZE;
-        int start = 0;
         for(int n=0; n<WE_TABLEBITS; n++)
         {
-            WE_state.tableStart[n] = 2*(N - N>>n);
+            int start = ( 2*N - ((2*N)>>n));
+            //start = 2*N - (2*N)>>n;
             for(int i=0; i<sz; i++)
             {
                 ////TODO: write wave tables
-                double phase = (i * 2.0 * M_PI) / (1.0 * N);
+                double phase = (i * 2.0 * M_PI) / (1.0 * sz);
                 WE_state.table[c][0][start+i] = (1.0*rand())/RAND_MAX; 
-                WE_state.table[c][1][start+i] = sinf(4*phase) + sinf(3*phase)/3;                    
-                WE_state.table[c][2][start+i] = sinf(1*phase) + sinf(2*phase)/2;                    
-                WE_state.table[c][3][start+i] = sinf(1*phase);                    
-            }                    
-            start += sz;
+                WE_state.table[c][1][start+i] = (phase/M_PI) - 1;                    
+                WE_state.table[c][2][start+i] = sinf(1*phase);                    
+                WE_state.table[c][3][start+i] = sinf(2*phase);                    
+            }   
             sz = sz>>1;
         }
     }
@@ -177,7 +173,7 @@ void WE_init()
             WE_state.voice[v].parm[p].now = 0;
             WE_state.voice[v].parm[p].next = 0; 
             WE_state.voice[v].parm[p].interp = 0;
-            WE_state.voice[v].parm[p].rate   = 0.5;
+            WE_state.voice[v].parm[p].rate   = 0.9;
         }
     }
 }
@@ -257,7 +253,7 @@ void WE_render(long left[], long right[], long samples)
                 {
                     float t = cyclesPerSample*i;
                     float phase = p + t;
-                    float s = pfolisample(t1I*3,phase*0.01,WE_state.table, phase * N,o);
+                    float s = pfolisample((t1I*WE_FMASK),t0I*0.001,WE_state.table, phase * N,o);
                     float aInterp = aOld + (aDiff*i)*invSamples;
                     L[i]  += (s * aInterp * t0I)*0.6;
                 }                        
