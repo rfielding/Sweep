@@ -206,6 +206,7 @@ void WE_init()
                         }
                     }
                 }
+                WE_state.table[c][1][start+i] = (i*phase/(2*M_PI*WE_TABLESIZE))-0.5;
             }   
         }
     }
