@@ -75,6 +75,7 @@ struct WE_voices {
     //State of the voice, in radians
     float phase[WE_CHORUS];
     float lastFreq[WE_CHORUS];
+    float thisFreq[WE_CHORUS];
     float drift[WE_CHORUS];
     //These are used to handle parameter changes
     struct WE_parm parm[P];
@@ -137,8 +138,6 @@ static inline float pfolisample(float f0,float f1,float wt[C][WE_F][N*2], float 
 
 ////END WE_audioMipMap
 
-
-
 void WE_init() 
 {
     printf("WE_init");
@@ -176,9 +175,37 @@ void WE_init()
                     WE_state.table[c][0][(start+i-2+S)%S] += v * 0.18;                      
                 }
                 
-                WE_state.table[c][1][start+i] += sinf(1*phase)+sinf(2*phase)/2+sinf(3*phase)/3+sinf(4*phase)/4+sinf(5*phase)/5+sinf(6*phase)/6+sinf(7*phase)/7;                    
-                WE_state.table[c][2][start+i] += sinf(1*phase)+sinf(3*phase)/3+sinf(5*phase)/5+sinf(7*phase)/7;                    
-                WE_state.table[c][3][start+i] += sinf(1*phase);                    
+                for(int s=1; s<=3; s++)
+                {
+                    WE_state.table[c][s][start+i] += sinf(1*phase);
+                    if(s>1)
+                    {
+                        if(n<9)
+                        {
+                            if(s<=2)WE_state.table[c][s][start+i] += sinf(2*phase)/2;
+                            if(n<9)
+                            {
+                                WE_state.table[c][s][start+i] += sinf(3*phase)/3;
+                                if(n<8)
+                                {
+                                    if(s<=2)WE_state.table[c][s][start+i] += sinf(4*phase)/4;
+                                    if(n<8)
+                                    {
+                                        WE_state.table[c][s][start+i] += sinf(5*phase)/5;
+                                        if(n<7)
+                                        {
+                                            if(s<=2)WE_state.table[c][s][start+i] += sinf(6*phase)/6;
+                                            if(n<7)
+                                            {
+                                                WE_state.table[c][s][start+i] += sinf(7*phase)/7;                                                                                                                                                                                                                                                            
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }   
         }
     }
@@ -197,6 +224,7 @@ void WE_init()
             WE_state.voice[v].parm[p].interp = 0;
             WE_state.voice[v].parm[p].rate   = 0.95;
         }
+        WE_state.voice[v].parm[P_AMP ].rate   = 0.92;
         WE_state.voice[v].parm[P_NOTE].rate   = 0.25;
     }
 }
@@ -239,7 +267,7 @@ static inline void commit_voice(int v)
     {
         float jitter =  (random()*1.0/RAND_MAX-0.5)*0.01;
         WE_state.voice[v].drift[c] += jitter;
-        WE_state.voice[v].drift[c] *= 0.99;
+        WE_state.voice[v].drift[c] *= 0.999;
     }
 }
 
@@ -284,6 +312,7 @@ void WE_render(long left[], long right[], long samples)
                 float jitter =  WE_state.voice[v].drift[c];
                 float chorus = (c-C/2.0)*0.025;
                 float thisFreq = powf(2,(nI+jitter+chorus-33)/12) * (440/(44100.0*32));
+                WE_state.voice[v].thisFreq[c] = thisFreq;
                 float lastFreq = WE_state.voice[v].lastFreq[c];
                 float freqDiff = thisFreq-lastFreq;
                 int i;
@@ -312,8 +341,8 @@ void WE_render(long left[], long right[], long samples)
     //Post-render composting
     for(int i=0; i<samples; i++)
     {
-        left[i]  = (long)(leftf[i] * 0x7fffff);
-        right[i] = left[i]; 
+        left[i]  = (long)(atanf(leftf[i] * 0.3) /M_PI * 0x5ffffff);
+        right[i] = (long)(atanf(rightf[i]* 0.3)/M_PI * 0x5ffffff); 
     }
     
     WE_state.sample += samples;
