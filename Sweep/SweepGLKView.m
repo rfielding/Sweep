@@ -138,7 +138,7 @@ static float scaleFactor = 2;
             }
             WE_voice v  = TouchMapping_mapFinger(touch);
             WE_amp(v,1);
-            WE_note(v, 127*(1-y/hMax));
+            WE_note(v, 72*(1-y/hMax));
             WE_timbre(v, 1, x/wMax);
             WE_timbre(v, 0, area);
         }
